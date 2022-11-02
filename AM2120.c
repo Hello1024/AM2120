@@ -1,3 +1,5 @@
+// ESP8266 specific.   You might want to just replace calls with 'micros()'
+// on other platforms.
 static inline int32_t asm_ccount(void) {
     int32_t r;
     asm volatile ("rsr %0, ccount" : "=r"(r));
@@ -19,30 +21,31 @@ int readAM2120(float* fhumidity, float* ftemp) {
   delay(5);
   uint8_t data[5];
   
-  for (int i=0; i<5; i++)
-    data[i]=0;
-
   uint32_t start_time = asm_ccount();
 
   pinMode(D7, INPUT_PULLUP);
-  delayMicroseconds(35+80+80);   // skip the first pulse
+  delayMicroseconds(35+80+80+20);   // skip the first pulse
 
+  // Note this code will fail if interrupted by an interrupt.
+  // If that happens, we just return an error and let the
+  // user retry.   You might want to use a critical section
+  // if thats unacceptable.
   for (int i=0; i<5; i++)
     for (int j=0; j<8; j++) {
       // Wait till data line goes high
       while (!digitalRead(D7))
-        if (asm_ccount()-start_time>1000000) return 1;  // timeout waiting for start of data bit.
+        if (asm_ccount()-start_time>1000000) return -1;  // timeout waiting for start of data bit.
       
       delayMicroseconds(40);
       data[i] = (data[i]<<1) + (digitalRead(D7)?1:0);
 
       // Wait for data line to go low
       while (digitalRead(D7))
-        if (asm_ccount()-start_time>1000000) return 2;  // Timeout waiting for end of data bit
+        if (asm_ccount()-start_time>1000000) return -2;  // Timeout waiting for end of data bit
 
   }
 
-  if ((uint8_t)(data[0]+data[1]+data[2]+data[3]) != data[4]) return 3;   // checksum failure.
+  if ((uint8_t)(data[0]+data[1]+data[2]+data[3]) != data[4]) return -3;   // checksum failure.
 
   uint16_t humidity = ((int)data[0] << 8) + ((int)data[1]);
   uint16_t temp = ((int)data[2] << 8) + ((int)data[3]);
