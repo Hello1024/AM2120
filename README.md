@@ -1,4 +1,4 @@
-This is example code for using the AM210 humidity temperature sensor with a microcontroller.
+This is example code for using the AM2120 humidity temperature sensor with a microcontroller.
 
 
 It is tested with an ESP8266 on the arduino IDE.    It will require adjustment for other architectures.
